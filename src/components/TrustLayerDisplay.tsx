@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { TrustLayer } from '@/types/analytics';
 import { Progress } from '@/components/ui/progress';
+import { InteractiveTrustExplanations } from '@/components/InteractiveTrustExplanations';
 
 interface TrustLayerDisplayProps {
   trustLayer: TrustLayer;
@@ -91,7 +92,7 @@ export function TrustLayerDisplay({ trustLayer }: TrustLayerDisplayProps) {
         </div>
       </div>
 
-      {/* Confidence & Evidence Panel */}
+      {/* Confidence & Evidence Panel - Interactive */}
       <div className="glass-panel-elevated p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center">
@@ -99,57 +100,11 @@ export function TrustLayerDisplay({ trustLayer }: TrustLayerDisplayProps) {
           </div>
           <div>
             <h3 className="text-xl font-bold">Why These Insights Can Be Trusted</h3>
-            <p className="text-sm text-muted-foreground">Evidence and confidence levels</p>
+            <p className="text-sm text-muted-foreground">Click any insight to see how confidence was calculated</p>
           </div>
         </div>
         
-        <div className="space-y-4">
-          {trustLayer.insightEvidence.map((evidence, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="p-4 rounded-xl bg-secondary/30 border border-border/50"
-            >
-              <div className="flex items-start justify-between gap-4 mb-3">
-                <p className="text-sm font-medium flex-1">{evidence.insight}</p>
-                <div className={`px-3 py-1 rounded-full text-xs font-bold ${
-                  evidence.confidence >= 80 ? 'bg-emerald-500/20 text-emerald-400' :
-                  evidence.confidence >= 60 ? 'bg-blue-500/20 text-blue-400' : 'bg-yellow-500/20 text-yellow-400'
-                }`}>
-                  {evidence.confidence}% confident
-                </div>
-              </div>
-              
-              <div className="flex flex-wrap gap-3 text-xs">
-                <span className={`px-2 py-1 rounded-lg ${
-                  evidence.evidenceStrength === 'strong' ? 'bg-emerald-500/20 text-emerald-400' :
-                  evidence.evidenceStrength === 'moderate' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-500/20 text-gray-400'
-                }`}>
-                  {evidence.evidenceStrength} evidence
-                </span>
-                <span className="px-2 py-1 rounded-lg bg-primary/10 text-primary">
-                  {evidence.dataPointsSupporting.toLocaleString()} data points
-                </span>
-                {evidence.isRepeated && (
-                  <span className="px-2 py-1 rounded-lg bg-purple-500/20 text-purple-400">
-                    Repeated pattern
-                  </span>
-                )}
-              </div>
-              
-              {evidence.assumptions.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-border/30">
-                  <p className="text-xs text-muted-foreground">
-                    <span className="font-medium">Assumes: </span>
-                    {evidence.assumptions.join('; ')}
-                  </p>
-                </div>
-              )}
-            </motion.div>
-          ))}
-        </div>
+        <InteractiveTrustExplanations evidence={trustLayer.insightEvidence} />
       </div>
 
       {/* Anomaly Timeline */}
