@@ -55,6 +55,49 @@ export interface DataStory {
   conclusion: string;
 }
 
+export interface TrustLayer {
+  reliabilityScore: number;
+  reliabilityDetails: string;
+  safeConclusions: string[];
+  uncertainConclusions: string[];
+  insightEvidence: InsightEvidence[];
+  anomalyTimeline: AnomalyEvent[];
+  whatIfScenario: WhatIfScenario;
+  multiStyleExplanation: MultiStyleExplanation;
+  nextQuestions: string[];
+  trustStatement: string;
+}
+
+export interface InsightEvidence {
+  insight: string;
+  confidence: number;
+  evidenceStrength: 'weak' | 'moderate' | 'strong';
+  dataPointsSupporting: number;
+  isRepeated: boolean;
+  assumptions: string[];
+}
+
+export interface AnomalyEvent {
+  timestamp: string;
+  description: string;
+  significance: 'high' | 'medium' | 'low';
+  possibleExplanations: string[];
+}
+
+export interface WhatIfScenario {
+  scenario: string;
+  direction: 'positive' | 'negative' | 'neutral';
+  magnitude: 'low' | 'medium' | 'high';
+  assumptions: string[];
+  explanation: string;
+}
+
+export interface MultiStyleExplanation {
+  simple: string;
+  executive: string;
+  analyst: string;
+}
+
 export interface ClickExplanation {
   chartId: string;
   dataPoint: { x: any; y: any };
