@@ -17,6 +17,9 @@ import { DatePredictions } from '@/components/DatePredictions';
 import { TeamDiscussionPrompts } from '@/components/TeamDiscussionPrompts';
 import { DataChatAssistant } from '@/components/DataChatAssistant';
 import { EmailScheduler } from '@/components/EmailScheduler';
+import { BusinessHypotheses } from '@/components/BusinessHypotheses';
+import { RiskOpportunityRadar } from '@/components/RiskOpportunityRadar';
+import { AdvancedAnalyticsPanel } from '@/components/AdvancedAnalyticsPanel';
 import { cleanAndPrepareData } from '@/lib/dataPreprocessing';
 import { generateCharts } from '@/lib/analyticsEngine';
 import { generateDataStory } from '@/lib/storyGenerator';
@@ -24,7 +27,7 @@ import { generateTrustLayer } from '@/lib/trustLayerGenerator';
 import { calculateCorrelationMatrix, generateScatterPlots, CorrelationMatrix as CorrelationMatrixType, ScatterPlotData } from '@/lib/correlationAnalysis';
 import { CleanedData, ChartConfig, DataStory as DataStoryType, TrustLayer } from '@/types/analytics';
 import { TrustLayerDisplay } from '@/components/TrustLayerDisplay';
-import { 
+import {
   BarChart3, 
   FileText, 
   Sparkles, 
@@ -60,7 +63,7 @@ export default function Index() {
   const [scatterPlots, setScatterPlots] = useState<ScatterPlotData[]>([]);
   const [trustLayer, setTrustLayer] = useState<TrustLayer | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'stats' | 'charts' | 'correlations' | 'story' | 'trust' | 'saved'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'charts' | 'correlations' | 'story' | 'trust' | 'insights' | 'saved'>('stats');
 
   const handleDataLoaded = useCallback(async (data: Record<string, any>[]) => {
     setIsProcessing(true);
@@ -287,6 +290,7 @@ export default function Index() {
                   { id: 'correlations', label: 'Correlations', icon: GitCompare },
                   { id: 'story', label: 'Data Story', icon: FileText },
                   { id: 'trust', label: 'Trust Layer', icon: Sparkles },
+                  { id: 'insights', label: 'Insights', icon: Brain },
                   ...(user ? [{ id: 'saved', label: 'Saved', icon: Folder }] : []),
                 ].map((tab) => (
                   <button
@@ -382,6 +386,25 @@ export default function Index() {
                     exit={{ opacity: 0, x: 20 }}
                   >
                     <TrustLayerDisplay trustLayer={trustLayer} />
+                  </motion.div>
+                )}
+
+                {activeTab === 'insights' && cleanedData && (
+                  <motion.div
+                    key="insights"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="space-y-8"
+                  >
+                    {/* Risk & Opportunity Radar */}
+                    <RiskOpportunityRadar data={cleanedData} />
+                    
+                    {/* Business Hypotheses */}
+                    <BusinessHypotheses data={cleanedData} />
+                    
+                    {/* Advanced Analytics Methods */}
+                    <AdvancedAnalyticsPanel data={cleanedData} />
                   </motion.div>
                 )}
 
