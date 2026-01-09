@@ -9,7 +9,7 @@ import {
   Check,
   Loader2
 } from 'lucide-react';
-import { CleanedData, ChartConfig, DataStory } from '@/types/analytics';
+import { CleanedData, ChartConfig, DataStory, TrustLayer } from '@/types/analytics';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import jsPDF from 'jspdf';
+import { generateTrustLayer } from '@/lib/trustLayerGenerator';
 
 interface ExportPanelProps {
   cleanedData: CleanedData;
@@ -282,6 +283,41 @@ export function ExportPanel({ cleanedData, charts, dataStory }: ExportPanelProps
             y += 8;
           });
           y += 10;
+        }
+
+        // Trust Layer Section
+        if (dataStory) {
+          const trustLayer = generateTrustLayer(cleanedData, dataStory, charts);
+          
+          checkPageBreak(60);
+          pdf.addPage();
+          y = margin;
+          
+          pdf.setFillColor(16, 185, 129);
+          pdf.rect(margin, y, 4, 20, 'F');
+          pdf.setFontSize(14);
+          pdf.setTextColor(30, 30, 30);
+          pdf.text('Trust & Reliability Assessment', margin + 8, y + 7);
+          y += 25;
+          
+          pdf.setFontSize(10);
+          pdf.setTextColor(80, 80, 80);
+          pdf.text(`Data Reliability Score: ${trustLayer.reliabilityScore}%`, margin + 8, y);
+          y += 10;
+          
+          const reliabilityLines = pdf.splitTextToSize(trustLayer.reliabilityDetails, maxWidth - 10);
+          pdf.text(reliabilityLines, margin + 8, y);
+          y += reliabilityLines.length * lineHeight + 15;
+          
+          // Trust Statement
+          checkPageBreak(40);
+          pdf.setFillColor(245, 245, 245);
+          pdf.roundedRect(margin, y, maxWidth, 35, 3, 3, 'F');
+          pdf.setFontSize(10);
+          pdf.setTextColor(60, 60, 60);
+          const trustLines = pdf.splitTextToSize(trustLayer.trustStatement, maxWidth - 10);
+          pdf.text(trustLines.slice(0, 4), margin + 5, y + 10);
+          y += 45;
         }
 
         // Conclusion

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Minus, BarChart3, Hash, Calendar, Percent } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, BarChart3, Hash, Calendar, Percent, Sparkles, AlertTriangle } from 'lucide-react';
 import { CleanedData } from '@/types/analytics';
 
 interface MetricSummaryCardsProps {
@@ -13,6 +13,8 @@ interface MetricCard {
   trend?: 'up' | 'down' | 'stable';
   icon: React.ReactNode;
   color: string;
+  isHighlighted?: boolean;
+  highlightReason?: string;
 }
 
 export function MetricSummaryCards({ data }: MetricSummaryCardsProps) {
@@ -46,13 +48,21 @@ export function MetricSummaryCards({ data }: MetricSummaryCardsProps) {
       const trendDirection = stats.trend === 'increasing' ? 'up' : 
                             stats.trend === 'decreasing' ? 'down' : 'stable';
       
+      // Highlight if significant change
+      const isSignificant = stats.percentChange && Math.abs(stats.percentChange) > 15;
+      const isHighVariability = stats.stdDev && stats.mean && Math.abs(stats.stdDev / stats.mean) > 0.5;
+      
       metrics.push({
         label: `Avg ${formatLabel(primaryCol.name)}`,
         value: formatNumber(stats.mean),
         change: stats.percentChange,
         trend: trendDirection,
-        icon: <TrendingUp className="w-5 h-5" />,
-        color: 'chart-3'
+        icon: isSignificant ? <Sparkles className="w-5 h-5" /> : <TrendingUp className="w-5 h-5" />,
+        color: 'chart-3',
+        isHighlighted: isSignificant || isHighVariability,
+        highlightReason: isSignificant 
+          ? `${Math.abs(stats.percentChange!).toFixed(0)}% ${trendDirection === 'up' ? 'growth' : 'decline'} - significant!`
+          : isHighVariability ? 'High variability detected' : undefined
       });
     }
     
@@ -65,13 +75,17 @@ export function MetricSummaryCards({ data }: MetricSummaryCardsProps) {
         const trendDirection = secondStats.trend === 'increasing' ? 'up' : 
                               secondStats.trend === 'decreasing' ? 'down' : 'stable';
         
+        const hasOutliers = secondStats.outliers && secondStats.outliers.length > 5;
+        
         metrics.push({
           label: `Avg ${formatLabel(secondCol.name)}`,
           value: formatNumber(secondStats.mean),
           change: secondStats.percentChange,
           trend: trendDirection,
-          icon: <Percent className="w-5 h-5" />,
-          color: 'chart-4'
+          icon: hasOutliers ? <AlertTriangle className="w-5 h-5" /> : <Percent className="w-5 h-5" />,
+          color: 'chart-4',
+          isHighlighted: hasOutliers,
+          highlightReason: hasOutliers ? `${secondStats.outliers!.length} unusual values found` : undefined
         });
       }
     }
@@ -110,8 +124,25 @@ export function MetricSummaryCards({ data }: MetricSummaryCardsProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.1 }}
-          className={`relative overflow-hidden rounded-2xl bg-gradient-to-br from-${metric.color}/10 to-${metric.color}/5 border border-${metric.color}/20 p-4`}
+          className={`relative overflow-hidden rounded-2xl bg-gradient-to-br from-${metric.color}/10 to-${metric.color}/5 border ${
+            metric.isHighlighted 
+              ? 'border-primary/50 ring-2 ring-primary/20' 
+              : `border-${metric.color}/20`
+          } p-4`}
         >
+          {/* Highlight badge */}
+          {metric.isHighlighted && (
+            <div className="absolute top-2 right-2 z-20">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="px-2 py-0.5 rounded-full bg-primary/90 text-primary-foreground text-[10px] font-bold"
+              >
+                KEY INSIGHT
+              </motion.div>
+            </div>
+          )}
+          
           {/* Icon background */}
           <div className={`absolute -right-2 -top-2 w-16 h-16 rounded-full bg-${metric.color}/10 blur-xl`} />
           
@@ -145,6 +176,18 @@ export function MetricSummaryCards({ data }: MetricSummaryCardsProps) {
                 </div>
               )}
             </div>
+            
+            {/* Highlight reason tooltip */}
+            {metric.highlightReason && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="text-[10px] text-primary mt-2 font-medium"
+              >
+                💡 {metric.highlightReason}
+              </motion.p>
+            )}
           </div>
         </motion.div>
       ))}

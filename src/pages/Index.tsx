@@ -19,8 +19,10 @@ import { DataChatAssistant } from '@/components/DataChatAssistant';
 import { cleanAndPrepareData } from '@/lib/dataPreprocessing';
 import { generateCharts } from '@/lib/analyticsEngine';
 import { generateDataStory } from '@/lib/storyGenerator';
+import { generateTrustLayer } from '@/lib/trustLayerGenerator';
 import { calculateCorrelationMatrix, generateScatterPlots, CorrelationMatrix as CorrelationMatrixType, ScatterPlotData } from '@/lib/correlationAnalysis';
-import { CleanedData, ChartConfig, DataStory as DataStoryType } from '@/types/analytics';
+import { CleanedData, ChartConfig, DataStory as DataStoryType, TrustLayer } from '@/types/analytics';
+import { TrustLayerDisplay } from '@/components/TrustLayerDisplay';
 import { 
   BarChart3, 
   FileText, 
@@ -55,8 +57,9 @@ export default function Index() {
   const [dataStory, setDataStory] = useState<DataStoryType | null>(null);
   const [correlationMatrix, setCorrelationMatrix] = useState<CorrelationMatrixType | null>(null);
   const [scatterPlots, setScatterPlots] = useState<ScatterPlotData[]>([]);
+  const [trustLayer, setTrustLayer] = useState<TrustLayer | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'stats' | 'charts' | 'correlations' | 'story' | 'saved'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'charts' | 'correlations' | 'story' | 'trust' | 'saved'>('stats');
 
   const handleDataLoaded = useCallback(async (data: Record<string, any>[]) => {
     setIsProcessing(true);
@@ -73,6 +76,10 @@ export default function Index() {
       
       const story = generateDataStory(cleaned, generatedCharts);
       setDataStory(story);
+      
+      // Generate trust layer
+      const trust = generateTrustLayer(cleaned, story, generatedCharts);
+      setTrustLayer(trust);
       
       // Calculate correlations
       const matrix = calculateCorrelationMatrix(cleaned);
@@ -94,11 +101,13 @@ export default function Index() {
     setCharts(analysis.charts || []);
     setDataStory(analysis.story);
     
-    if (analysis.data) {
+    if (analysis.data && analysis.story) {
       const matrix = calculateCorrelationMatrix(analysis.data);
       setCorrelationMatrix(matrix);
       const scatters = generateScatterPlots(analysis.data);
       setScatterPlots(scatters);
+      const trust = generateTrustLayer(analysis.data, analysis.story, analysis.charts || []);
+      setTrustLayer(trust);
     }
     
     setActiveTab('stats');
@@ -111,6 +120,7 @@ export default function Index() {
     setDataStory(null);
     setCorrelationMatrix(null);
     setScatterPlots([]);
+    setTrustLayer(null);
     setActiveTab('stats');
   };
 
@@ -274,6 +284,7 @@ export default function Index() {
                   { id: 'charts', label: 'Charts', icon: BarChart3 },
                   { id: 'correlations', label: 'Correlations', icon: GitCompare },
                   { id: 'story', label: 'Data Story', icon: FileText },
+                  { id: 'trust', label: 'Trust Layer', icon: Sparkles },
                   ...(user ? [{ id: 'saved', label: 'Saved', icon: Folder }] : []),
                 ].map((tab) => (
                   <button
@@ -358,6 +369,17 @@ export default function Index() {
                     
                     {/* Team Discussion Prompts */}
                     <TeamDiscussionPrompts data={cleanedData} story={dataStory} />
+                  </motion.div>
+                )}
+
+                {activeTab === 'trust' && trustLayer && (
+                  <motion.div
+                    key="trust"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                  >
+                    <TrustLayerDisplay trustLayer={trustLayer} />
                   </motion.div>
                 )}
 
