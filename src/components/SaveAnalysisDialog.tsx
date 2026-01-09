@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -16,6 +15,8 @@ import {
 import { Save, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CleanedData, ChartConfig, DataStory } from '@/types/analytics';
+import { notifyAnalysisSaved, notifyAnomalyDetected } from '@/lib/notifications';
+import { getNotificationPreferences } from '@/components/NotificationSettings';
 
 interface SaveAnalysisDialogProps {
   cleanedData: CleanedData;
@@ -52,6 +53,22 @@ export function SaveAnalysisDialog({ cleanedData, charts, dataStory }: SaveAnaly
       setOpen(false);
       setName('');
       setDescription('');
+
+      // Send notifications based on preferences
+      const prefs = getNotificationPreferences();
+      
+      if (prefs.analysisSaved) {
+        notifyAnalysisSaved(name.trim(), user.email || undefined);
+      }
+      
+      // Check for anomalies and notify if enabled
+      if (prefs.anomalyDetected && dataStory?.anomalies && dataStory.anomalies.length > 0) {
+        notifyAnomalyDetected(
+          dataStory.anomalies.length,
+          dataStory.anomalies.slice(0, 3),
+          user.email || undefined
+        );
+      }
     } catch (error) {
       console.error('Error saving analysis:', error);
       toast.error('Failed to save analysis');
