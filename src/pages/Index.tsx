@@ -1,12 +1,21 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { FileUpload } from '@/components/FileUpload';
 import { StatsOverview } from '@/components/StatsOverview';
 import { InteractiveCharts } from '@/components/InteractiveCharts';
 import { DataStory } from '@/components/DataStory';
+import { CorrelationMatrix } from '@/components/CorrelationMatrix';
+import { ScatterPlots } from '@/components/ScatterPlots';
+import { SampleDatasetSelector } from '@/components/SampleDatasetSelector';
+import { ExportPanel } from '@/components/ExportPanel';
+import { SaveAnalysisDialog } from '@/components/SaveAnalysisDialog';
+import { SavedAnalysesList } from '@/components/SavedAnalysesList';
 import { cleanAndPrepareData } from '@/lib/dataPreprocessing';
 import { generateCharts } from '@/lib/analyticsEngine';
 import { generateDataStory } from '@/lib/storyGenerator';
+import { calculateCorrelationMatrix, generateScatterPlots, CorrelationMatrix as CorrelationMatrixType, ScatterPlotData } from '@/lib/correlationAnalysis';
 import { CleanedData, ChartConfig, DataStory as DataStoryType } from '@/types/analytics';
 import { 
   BarChart3, 
@@ -16,36 +25,56 @@ import {
   RefreshCw,
   Database,
   Zap,
-  Brain
+  Brain,
+  LogOut,
+  User,
+  GitCompare,
+  Folder
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 
 export default function Index() {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  
   const [rawData, setRawData] = useState<Record<string, any>[] | null>(null);
   const [cleanedData, setCleanedData] = useState<CleanedData | null>(null);
   const [charts, setCharts] = useState<ChartConfig[]>([]);
   const [dataStory, setDataStory] = useState<DataStoryType | null>(null);
+  const [correlationMatrix, setCorrelationMatrix] = useState<CorrelationMatrixType | null>(null);
+  const [scatterPlots, setScatterPlots] = useState<ScatterPlotData[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'stats' | 'charts' | 'story'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'charts' | 'correlations' | 'story' | 'saved'>('stats');
 
   const handleDataLoaded = useCallback(async (data: Record<string, any>[]) => {
     setIsProcessing(true);
     setRawData(data);
     
-    // Simulate slight delay for UX
     await new Promise(resolve => setTimeout(resolve, 500));
     
     try {
-      // Clean and prepare data
       const cleaned = cleanAndPrepareData(data);
       setCleanedData(cleaned);
       
-      // Generate charts
       const generatedCharts = generateCharts(cleaned);
       setCharts(generatedCharts);
       
-      // Generate data story
       const story = generateDataStory(cleaned, generatedCharts);
       setDataStory(story);
+      
+      // Calculate correlations
+      const matrix = calculateCorrelationMatrix(cleaned);
+      setCorrelationMatrix(matrix);
+      
+      const scatters = generateScatterPlots(cleaned);
+      setScatterPlots(scatters);
       
       setActiveTab('stats');
     } catch (error) {
@@ -55,11 +84,28 @@ export default function Index() {
     }
   }, []);
 
+  const handleLoadSavedAnalysis = (analysis: any) => {
+    setCleanedData(analysis.data);
+    setCharts(analysis.charts || []);
+    setDataStory(analysis.story);
+    
+    if (analysis.data) {
+      const matrix = calculateCorrelationMatrix(analysis.data);
+      setCorrelationMatrix(matrix);
+      const scatters = generateScatterPlots(analysis.data);
+      setScatterPlots(scatters);
+    }
+    
+    setActiveTab('stats');
+  };
+
   const handleReset = () => {
     setRawData(null);
     setCleanedData(null);
     setCharts([]);
     setDataStory(null);
+    setCorrelationMatrix(null);
+    setScatterPlots([]);
     setActiveTab('stats');
   };
 
@@ -79,15 +125,49 @@ export default function Index() {
               </div>
             </div>
             
-            {cleanedData && (
-              <button
-                onClick={handleReset}
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-secondary hover:bg-secondary/80 rounded-lg transition-colors"
-              >
-                <RefreshCw className="w-4 h-4" />
-                New Analysis
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {cleanedData && (
+                <>
+                  <ExportPanel cleanedData={cleanedData} charts={charts} dataStory={dataStory} />
+                  {user && <SaveAnalysisDialog cleanedData={cleanedData} charts={charts} dataStory={dataStory} />}
+                  <Button
+                    variant="outline"
+                    onClick={handleReset}
+                    className="gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    New
+                  </Button>
+                </>
+              )}
+              
+              {user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="gap-2">
+                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                        <User className="w-4 h-4 text-primary" />
+                      </div>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      {user.email}
+                    </div>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => signOut()}>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Button onClick={() => navigate('/auth')} variant="outline" className="gap-2">
+                  <User className="w-4 h-4" />
+                  Sign In
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -113,7 +193,7 @@ export default function Index() {
                 </h2>
                 <p className="text-lg text-muted-foreground">
                   Upload your CSV data and get instant insights, interactive visualizations, 
-                  and narrative explanations powered by intelligent analytics.
+                  correlation analysis, and narrative explanations.
                 </p>
               </motion.div>
 
@@ -122,12 +202,13 @@ export default function Index() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12 w-full max-w-3xl"
+                className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-12 w-full max-w-4xl"
               >
                 {[
-                  { icon: Database, label: 'Smart Data Cleaning', desc: 'Auto-fix missing values & duplicates' },
-                  { icon: BarChart3, label: 'Auto Visualizations', desc: 'Charts generated from your data' },
-                  { icon: Zap, label: 'Click to Explain', desc: 'Instant insights on any data point' },
+                  { icon: Database, label: 'Smart Cleaning', desc: 'Auto-fix data issues' },
+                  { icon: BarChart3, label: 'Auto Charts', desc: 'Instant visualizations' },
+                  { icon: GitCompare, label: 'Correlations', desc: 'Find relationships' },
+                  { icon: Zap, label: 'Click to Explain', desc: 'Instant insights' },
                 ].map((feature, i) => (
                   <motion.div
                     key={feature.label}
@@ -147,16 +228,27 @@ export default function Index() {
 
               {/* Upload Zone */}
               <FileUpload onDataLoaded={handleDataLoaded} isProcessing={isProcessing} />
+              
+              {/* Sample Datasets */}
+              <SampleDatasetSelector onSelect={handleDataLoaded} isProcessing={isProcessing} />
 
-              {/* Sample Data Hint */}
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="text-sm text-muted-foreground mt-6"
-              >
-                Try with sales data, financial reports, or any structured CSV
-              </motion.p>
+              {/* Saved Analyses (if logged in) */}
+              {user && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="w-full max-w-2xl mt-12"
+                >
+                  <div className="flex items-center gap-2 mb-4">
+                    <Folder className="w-4 h-4 text-muted-foreground" />
+                    <h3 className="text-sm font-medium text-muted-foreground">Your Saved Analyses</h3>
+                  </div>
+                  <div className="glass-panel p-4">
+                    <SavedAnalysesList onLoad={handleLoadSavedAnalysis} />
+                  </div>
+                </motion.div>
+              )}
             </motion.div>
           ) : (
             <motion.div
@@ -171,7 +263,9 @@ export default function Index() {
                 {[
                   { id: 'stats', label: 'Statistics', icon: Database },
                   { id: 'charts', label: 'Charts', icon: BarChart3 },
+                  { id: 'correlations', label: 'Correlations', icon: GitCompare },
                   { id: 'story', label: 'Data Story', icon: FileText },
+                  ...(user ? [{ id: 'saved', label: 'Saved', icon: Folder }] : []),
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -212,6 +306,30 @@ export default function Index() {
                   </motion.div>
                 )}
 
+                {activeTab === 'correlations' && (
+                  <motion.div
+                    key="correlations"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="space-y-8"
+                  >
+                    {correlationMatrix && correlationMatrix.columns.length > 1 && (
+                      <CorrelationMatrix matrix={correlationMatrix} />
+                    )}
+                    {scatterPlots.length > 0 && (
+                      <ScatterPlots plots={scatterPlots} />
+                    )}
+                    {(!correlationMatrix || correlationMatrix.columns.length <= 1) && scatterPlots.length === 0 && (
+                      <div className="glass-panel p-8 text-center">
+                        <p className="text-muted-foreground">
+                          Need at least 2 numeric columns for correlation analysis
+                        </p>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+
                 {activeTab === 'story' && dataStory && (
                   <motion.div
                     key="story"
@@ -220,6 +338,20 @@ export default function Index() {
                     exit={{ opacity: 0, x: 20 }}
                   >
                     <DataStory story={dataStory} />
+                  </motion.div>
+                )}
+
+                {activeTab === 'saved' && user && (
+                  <motion.div
+                    key="saved"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                  >
+                    <div className="glass-panel p-6">
+                      <h3 className="font-semibold text-lg mb-4">Your Saved Analyses</h3>
+                      <SavedAnalysesList onLoad={handleLoadSavedAnalysis} />
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -232,11 +364,18 @@ export default function Index() {
                   className="flex justify-center pt-4"
                 >
                   <button
-                    onClick={() => setActiveTab(activeTab === 'stats' ? 'charts' : 'story')}
+                    onClick={() => {
+                      const tabs = ['stats', 'charts', 'correlations', 'story'];
+                      const currentIdx = tabs.indexOf(activeTab);
+                      const nextTab = tabs[currentIdx + 1] || 'story';
+                      setActiveTab(nextTab as any);
+                    }}
                     className="flex items-center gap-2 px-6 py-3 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl transition-colors"
                   >
                     <Sparkles className="w-4 h-4" />
-                    {activeTab === 'stats' ? 'View Visualizations' : 'Read Data Story'}
+                    {activeTab === 'stats' && 'View Charts'}
+                    {activeTab === 'charts' && 'Explore Correlations'}
+                    {activeTab === 'correlations' && 'Read Data Story'}
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </motion.div>
@@ -249,7 +388,7 @@ export default function Index() {
       {/* Footer */}
       <footer className="border-t border-border/30 py-6 mt-12">
         <div className="container mx-auto px-6 text-center text-sm text-muted-foreground">
-          <p>DataLens AI — Intelligent Analytics Platform</p>
+          <p>DataLens AI — Intelligent Analytics Platform with Real-time Sync</p>
         </div>
       </footer>
     </div>
