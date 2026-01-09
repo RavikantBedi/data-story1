@@ -16,6 +16,7 @@ import { MetricSummaryCards } from '@/components/MetricSummaryCards';
 import { DatePredictions } from '@/components/DatePredictions';
 import { TeamDiscussionPrompts } from '@/components/TeamDiscussionPrompts';
 import { DataChatAssistant } from '@/components/DataChatAssistant';
+import { EmailScheduler } from '@/components/EmailScheduler';
 import { cleanAndPrepareData } from '@/lib/dataPreprocessing';
 import { generateCharts } from '@/lib/analyticsEngine';
 import { generateDataStory } from '@/lib/storyGenerator';
@@ -144,6 +145,7 @@ export default function Index() {
               {cleanedData && (
                 <>
                   <ExportPanel cleanedData={cleanedData} charts={charts} dataStory={dataStory} />
+                  <EmailScheduler cleanedData={cleanedData} dataStory={dataStory} charts={charts} />
                   {user && <SaveAnalysisDialog cleanedData={cleanedData} charts={charts} dataStory={dataStory} />}
                   <Button
                     variant="outline"
