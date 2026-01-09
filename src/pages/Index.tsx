@@ -29,7 +29,8 @@ import {
   LogOut,
   User,
   GitCompare,
-  Folder
+  Folder,
+  Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -155,6 +156,10 @@ export default function Index() {
                       {user.email}
                     </div>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate('/profile')}>
+                      <Settings className="w-4 h-4 mr-2" />
+                      Profile Settings
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => signOut()}>
                       <LogOut className="w-4 h-4 mr-2" />
                       Sign Out
