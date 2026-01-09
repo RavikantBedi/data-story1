@@ -20,6 +20,8 @@ import { EmailScheduler } from '@/components/EmailScheduler';
 import { BusinessHypotheses } from '@/components/BusinessHypotheses';
 import { RiskOpportunityRadar } from '@/components/RiskOpportunityRadar';
 import { AdvancedAnalyticsPanel } from '@/components/AdvancedAnalyticsPanel';
+import { AnomalyAlertConfig } from '@/components/AnomalyAlertConfig';
+import { ForecastingCharts } from '@/components/ForecastingCharts';
 import { cleanAndPrepareData } from '@/lib/dataPreprocessing';
 import { generateCharts } from '@/lib/analyticsEngine';
 import { generateDataStory } from '@/lib/storyGenerator';
@@ -397,11 +399,17 @@ export default function Index() {
                     exit={{ opacity: 0, x: 20 }}
                     className="space-y-8"
                   >
+                    {/* Forecasting Charts */}
+                    <ForecastingCharts data={cleanedData} />
+                    
                     {/* Risk & Opportunity Radar */}
                     <RiskOpportunityRadar data={cleanedData} />
                     
                     {/* Business Hypotheses */}
                     <BusinessHypotheses data={cleanedData} />
+                    
+                    {/* Anomaly Alerts */}
+                    <AnomalyAlertConfig data={cleanedData} />
                     
                     {/* Advanced Analytics Methods */}
                     <AdvancedAnalyticsPanel data={cleanedData} />

@@ -20,6 +20,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import jsPDF from 'jspdf';
 import { generateTrustLayer } from '@/lib/trustLayerGenerator';
+import { 
+  generateBusinessHypotheses, 
+  generateRiskOpportunityRadar,
+  BusinessHypothesis,
+  RiskOpportunity
+} from '@/lib/advancedAnalytics';
 
 interface ExportPanelProps {
   cleanedData: CleanedData;
@@ -788,6 +794,95 @@ export function ExportPanel({ cleanedData, charts, dataStory }: ExportPanelProps
         pdf.setTextColor(60, 60, 60);
         const trustLines = pdf.splitTextToSize(trustLayer.trustStatement, maxWidth - 20);
         pdf.text(trustLines.slice(0, 4), margin + 10, y + 20);
+      }
+
+      // === INSIGHTS PAGE: RISK/OPPORTUNITY & HYPOTHESES ===
+      const riskOpportunities = generateRiskOpportunityRadar(cleanedData);
+      const hypotheses = generateBusinessHypotheses(cleanedData);
+
+      if (riskOpportunities.length > 0 || hypotheses.length > 0) {
+        pdf.addPage();
+        y = margin;
+
+        pdf.setFillColor(168, 85, 247);
+        pdf.rect(0, 0, pageWidth, 20, 'F');
+        pdf.setFontSize(11);
+        pdf.setTextColor(255, 255, 255);
+        pdf.text('Strategic Insights', margin, 14);
+        y = 30;
+
+        // Risk & Opportunity Radar
+        if (riskOpportunities.length > 0) {
+          addSectionHeader('Risk & Opportunity Radar', [168, 85, 247]);
+          
+          const risks = riskOpportunities.filter(r => r.type === 'risk');
+          const opportunities = riskOpportunities.filter(r => r.type === 'opportunity');
+          
+          // Summary boxes
+          pdf.setFillColor(254, 242, 242);
+          pdf.roundedRect(margin, y, (maxWidth - 10) / 2, 25, 3, 3, 'F');
+          pdf.setFontSize(14);
+          pdf.setTextColor(239, 68, 68);
+          pdf.text(String(risks.length), margin + 20, y + 16);
+          pdf.setFontSize(9);
+          pdf.text('Risks', margin + 35, y + 16);
+          
+          pdf.setFillColor(240, 253, 244);
+          pdf.roundedRect(margin + (maxWidth - 10) / 2 + 10, y, (maxWidth - 10) / 2, 25, 3, 3, 'F');
+          pdf.setFontSize(14);
+          pdf.setTextColor(16, 185, 129);
+          pdf.text(String(opportunities.length), margin + (maxWidth - 10) / 2 + 30, y + 16);
+          pdf.setFontSize(9);
+          pdf.text('Opportunities', margin + (maxWidth - 10) / 2 + 45, y + 16);
+          y += 35;
+
+          // List items
+          riskOpportunities.slice(0, 6).forEach((item) => {
+            checkPageBreak(20);
+            const isRisk = item.type === 'risk';
+            pdf.setFillColor(isRisk ? 254 : 240, isRisk ? 242 : 253, isRisk ? 242 : 244);
+            pdf.roundedRect(margin, y, maxWidth, 18, 2, 2, 'F');
+            
+            pdf.setFontSize(8);
+            pdf.setTextColor(isRisk ? 239 : 16, isRisk ? 68 : 185, isRisk ? 68 : 129);
+            pdf.text(item.type.toUpperCase(), margin + 5, y + 7);
+            
+            pdf.setTextColor(30, 30, 30);
+            pdf.text(item.title.slice(0, 40), margin + 35, y + 7);
+            
+            pdf.setFontSize(7);
+            pdf.setTextColor(100, 100, 100);
+            const descLines = pdf.splitTextToSize(item.description, maxWidth - 45);
+            pdf.text(descLines[0] || '', margin + 35, y + 14);
+            y += 22;
+          });
+          y += 10;
+        }
+
+        // Business Hypotheses
+        if (hypotheses.length > 0) {
+          checkPageBreak(50);
+          addSectionHeader('Business Hypotheses', [245, 158, 11]);
+          
+          hypotheses.slice(0, 4).forEach((hyp, i) => {
+            checkPageBreak(30);
+            pdf.setFillColor(254, 252, 232);
+            pdf.roundedRect(margin, y, maxWidth, 28, 3, 3, 'F');
+            
+            pdf.setFontSize(8);
+            pdf.setTextColor(133, 77, 14);
+            pdf.text(`Hypothesis ${i + 1}:`, margin + 5, y + 8);
+            
+            pdf.setTextColor(30, 30, 30);
+            const hypLines = pdf.splitTextToSize(hyp.hypothesis, maxWidth - 15);
+            pdf.text(hypLines.slice(0, 2), margin + 5, y + 15);
+            
+            pdf.setFontSize(7);
+            pdf.setTextColor(100, 100, 100);
+            pdf.text(`Test: ${hyp.testMethod.slice(0, 60)}`, margin + 5, y + 24);
+            y += 32;
+          });
+        }
       }
 
       // === FINAL PAGE: CONCLUSION ===
