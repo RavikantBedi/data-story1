@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Send, Bot, User, Loader2, Sparkles, X, Maximize2, Minimize2 } from 'lucide-react';
+import { MessageSquare, Send, Bot, User, Loader2, Sparkles, X, Maximize2, Minimize2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -24,6 +24,187 @@ const SUGGESTED_QUESTIONS = [
   "Explain the trends in simple terms",
   "What does this mean for my business?",
 ];
+
+// Markdown-like renderer for formatted responses
+function FormattedMessage({ content }: { content: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Parse and render formatted content
+  const renderContent = (text: string) => {
+    const lines = text.split('\n');
+    const elements: JSX.Element[] = [];
+    let listItems: string[] = [];
+    let listType: 'bullet' | 'number' | null = null;
+    let key = 0;
+
+    const flushList = () => {
+      if (listItems.length > 0 && listType) {
+        if (listType === 'number') {
+          elements.push(
+            <ol key={key++} className="list-decimal list-inside space-y-1 my-2 ml-2">
+              {listItems.map((item, i) => (
+                <li key={i} className="text-sm">{renderInlineFormatting(item)}</li>
+              ))}
+            </ol>
+          );
+        } else {
+          elements.push(
+            <ul key={key++} className="space-y-1 my-2 ml-2">
+              {listItems.map((item, i) => (
+                <li key={i} className="text-sm flex items-start gap-2">
+                  <span className="text-primary mt-0.5">•</span>
+                  <span>{renderInlineFormatting(item)}</span>
+                </li>
+              ))}
+            </ul>
+          );
+        }
+        listItems = [];
+        listType = null;
+      }
+    };
+
+    lines.forEach((line, index) => {
+      const trimmedLine = line.trim();
+
+      // Headers
+      if (trimmedLine.startsWith('## ')) {
+        flushList();
+        elements.push(
+          <h3 key={key++} className="text-sm font-semibold text-primary mt-4 mb-2 flex items-center gap-2">
+            <span className="w-1 h-4 bg-primary rounded-full" />
+            {trimmedLine.slice(3)}
+          </h3>
+        );
+        return;
+      }
+
+      if (trimmedLine.startsWith('### ')) {
+        flushList();
+        elements.push(
+          <h4 key={key++} className="text-sm font-medium mt-3 mb-1">
+            {trimmedLine.slice(4)}
+          </h4>
+        );
+        return;
+      }
+
+      // Bullet points
+      if (trimmedLine.startsWith('• ') || trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ')) {
+        if (listType !== 'bullet') {
+          flushList();
+          listType = 'bullet';
+        }
+        listItems.push(trimmedLine.slice(2));
+        return;
+      }
+
+      // Numbered lists
+      const numberedMatch = trimmedLine.match(/^(\d+)\.\s+(.+)$/);
+      if (numberedMatch) {
+        if (listType !== 'number') {
+          flushList();
+          listType = 'number';
+        }
+        listItems.push(numberedMatch[2]);
+        return;
+      }
+
+      // Trend indicators with emojis
+      if (trimmedLine.startsWith('📈') || trimmedLine.startsWith('📉') || trimmedLine.startsWith('➡️')) {
+        flushList();
+        const isUp = trimmedLine.startsWith('📈');
+        const isDown = trimmedLine.startsWith('📉');
+        elements.push(
+          <div 
+            key={key++} 
+            className={`flex items-center gap-2 my-1 p-2 rounded-lg text-sm ${
+              isUp ? 'bg-chart-1/10 text-chart-1' : 
+              isDown ? 'bg-destructive/10 text-destructive' : 
+              'bg-muted text-muted-foreground'
+            }`}
+          >
+            {renderInlineFormatting(trimmedLine)}
+          </div>
+        );
+        return;
+      }
+
+      // Empty lines
+      if (trimmedLine === '') {
+        flushList();
+        elements.push(<div key={key++} className="h-2" />);
+        return;
+      }
+
+      // Regular paragraphs
+      flushList();
+      elements.push(
+        <p key={key++} className="text-sm my-1 leading-relaxed">
+          {renderInlineFormatting(trimmedLine)}
+        </p>
+      );
+    });
+
+    flushList();
+    return elements;
+  };
+
+  // Render inline formatting (bold, etc.)
+  const renderInlineFormatting = (text: string): (string | JSX.Element)[] => {
+    const parts: (string | JSX.Element)[] = [];
+    let remaining = text;
+    let key = 0;
+
+    while (remaining.length > 0) {
+      // Bold with **
+      const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
+      if (boldMatch && boldMatch.index !== undefined) {
+        if (boldMatch.index > 0) {
+          parts.push(remaining.slice(0, boldMatch.index));
+        }
+        parts.push(
+          <strong key={key++} className="font-semibold text-foreground">
+            {boldMatch[1]}
+          </strong>
+        );
+        remaining = remaining.slice(boldMatch.index + boldMatch[0].length);
+        continue;
+      }
+
+      // No more matches, add rest
+      parts.push(remaining);
+      break;
+    }
+
+    return parts;
+  };
+
+  return (
+    <div className="relative group">
+      <div className="prose prose-sm max-w-none">
+        {renderContent(content)}
+      </div>
+      <button
+        onClick={copyToClipboard}
+        className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded bg-secondary/80 hover:bg-secondary"
+        title="Copy response"
+      >
+        {copied ? (
+          <Check className="w-3 h-3 text-chart-1" />
+        ) : (
+          <Copy className="w-3 h-3 text-muted-foreground" />
+        )}
+      </button>
+    </div>
+  );
+}
 
 export function DataChatAssistant({ data, story }: DataChatAssistantProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -137,6 +318,10 @@ export function DataChatAssistant({ data, story }: DataChatAssistantProps) {
     e.preventDefault();
     sendMessage(input);
   };
+
+  const clearChat = () => {
+    setMessages([]);
+  };
   
   return (
     <>
@@ -162,7 +347,7 @@ export function DataChatAssistant({ data, story }: DataChatAssistantProps) {
             className={`fixed z-50 bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden ${
               isExpanded 
                 ? 'inset-4 md:inset-10' 
-                : 'bottom-6 right-6 w-[400px] h-[600px] max-w-[calc(100vw-48px)] max-h-[calc(100vh-48px)]'
+                : 'bottom-6 right-6 w-[420px] h-[650px] max-w-[calc(100vw-48px)] max-h-[calc(100vh-48px)]'
             }`}
           >
             {/* Header */}
@@ -176,7 +361,17 @@ export function DataChatAssistant({ data, story }: DataChatAssistantProps) {
                   <p className="text-xs text-muted-foreground">Ask anything about your data</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                {messages.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearChat}
+                    className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Clear
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -200,24 +395,25 @@ export function DataChatAssistant({ data, story }: DataChatAssistantProps) {
             <ScrollArea className="flex-1 p-4" ref={scrollRef}>
               {messages.length === 0 ? (
                 <div className="space-y-4">
-                  <div className="text-center py-8">
+                  <div className="text-center py-6">
                     <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-chart-1/20 flex items-center justify-center mb-4">
                       <MessageSquare className="w-8 h-8 text-primary" />
                     </div>
                     <h4 className="font-semibold mb-2">Ask me about your data!</h4>
-                    <p className="text-sm text-muted-foreground max-w-[250px] mx-auto">
-                      I can explain trends, answer questions, and help you understand what the numbers mean.
+                    <p className="text-sm text-muted-foreground max-w-[280px] mx-auto">
+                      I can explain trends, answer questions, and help you understand what the numbers mean for your business.
                     </p>
                   </div>
                   
                   <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground text-center">Try asking:</p>
+                    <p className="text-xs text-muted-foreground text-center font-medium">Try asking:</p>
                     {SUGGESTED_QUESTIONS.map((q, i) => (
                       <button
                         key={i}
                         onClick={() => sendMessage(q)}
-                        className="w-full text-left p-3 text-sm rounded-xl bg-secondary/50 hover:bg-secondary transition-colors"
+                        className="w-full text-left p-3 text-sm rounded-xl bg-secondary/50 hover:bg-secondary hover:border-primary/20 border border-transparent transition-all flex items-center gap-2"
                       >
+                        <Sparkles className="w-4 h-4 text-primary/60" />
                         {q}
                       </button>
                     ))}
@@ -243,20 +439,29 @@ export function DataChatAssistant({ data, story }: DataChatAssistantProps) {
                           <Bot className="w-4 h-4 text-white" />
                         )}
                       </div>
-                      <div className={`flex-1 p-3 rounded-xl ${
+                      <div className={`flex-1 p-4 rounded-xl ${
                         message.role === 'user' 
                           ? 'bg-primary text-primary-foreground' 
-                          : 'bg-secondary/50'
+                          : 'bg-secondary/50 border border-border/50'
                       }`}>
-                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                        {message.role === 'user' ? (
+                          <p className="text-sm">{message.content}</p>
+                        ) : (
+                          <FormattedMessage content={message.content} />
+                        )}
                       </div>
                     </motion.div>
                   ))}
                   
                   {isLoading && messages[messages.length - 1]?.content === '' && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="text-sm">Thinking...</span>
+                    <div className="flex items-center gap-3 p-4 bg-secondary/30 rounded-xl">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-chart-1 to-chart-2 flex items-center justify-center">
+                        <Bot className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-sm">Analyzing your data...</span>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -264,16 +469,16 @@ export function DataChatAssistant({ data, story }: DataChatAssistantProps) {
             </ScrollArea>
             
             {/* Input */}
-            <form onSubmit={handleSubmit} className="p-4 border-t border-border">
+            <form onSubmit={handleSubmit} className="p-4 border-t border-border bg-card/50">
               <div className="flex gap-2">
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Ask about your data..."
                   disabled={isLoading}
-                  className="flex-1"
+                  className="flex-1 bg-background"
                 />
-                <Button type="submit" disabled={isLoading || !input.trim()}>
+                <Button type="submit" disabled={isLoading || !input.trim()} className="px-4">
                   {isLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
@@ -281,6 +486,9 @@ export function DataChatAssistant({ data, story }: DataChatAssistantProps) {
                   )}
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                Powered by AI • Responses are generated based on your data
+              </p>
             </form>
           </motion.div>
         )}
