@@ -12,6 +12,10 @@ import { SampleDatasetSelector } from '@/components/SampleDatasetSelector';
 import { ExportPanel } from '@/components/ExportPanel';
 import { SaveAnalysisDialog } from '@/components/SaveAnalysisDialog';
 import { SavedAnalysesList } from '@/components/SavedAnalysesList';
+import { MetricSummaryCards } from '@/components/MetricSummaryCards';
+import { DatePredictions } from '@/components/DatePredictions';
+import { TeamDiscussionPrompts } from '@/components/TeamDiscussionPrompts';
+import { DataChatAssistant } from '@/components/DataChatAssistant';
 import { cleanAndPrepareData } from '@/lib/dataPreprocessing';
 import { generateCharts } from '@/lib/analyticsEngine';
 import { generateDataStory } from '@/lib/storyGenerator';
@@ -335,14 +339,25 @@ export default function Index() {
                   </motion.div>
                 )}
 
-                {activeTab === 'story' && dataStory && (
+                {activeTab === 'story' && dataStory && cleanedData && (
                   <motion.div
                     key="story"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
+                    className="space-y-8"
                   >
+                    {/* Visual Summary Cards */}
+                    <MetricSummaryCards data={cleanedData} />
+                    
+                    {/* Main Data Story */}
                     <DataStory story={dataStory} />
+                    
+                    {/* Date-based Predictions */}
+                    <DatePredictions data={cleanedData} />
+                    
+                    {/* Team Discussion Prompts */}
+                    <TeamDiscussionPrompts data={cleanedData} story={dataStory} />
                   </motion.div>
                 )}
 
@@ -388,6 +403,11 @@ export default function Index() {
             </motion.div>
           )}
         </AnimatePresence>
+        
+        {/* AI Chat Assistant - only show when data is loaded */}
+        {cleanedData && dataStory && (
+          <DataChatAssistant data={cleanedData} story={dataStory} />
+        )}
       </main>
 
       {/* Footer */}
