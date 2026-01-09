@@ -5,23 +5,23 @@ export function generateDataStory(data: CleanedData, charts: ChartConfig[]): Dat
   const categoricalColumns = data.columns.filter(c => c.type === 'categorical');
   const dateColumns = data.columns.filter(c => c.type === 'datetime');
   
-  // Generate comprehensive overview
-  const overview = generateDetailedOverview(data, numericColumns, categoricalColumns, dateColumns);
+  // Generate executive summary
+  const overview = generateExecutiveSummary(data, numericColumns, categoricalColumns, dateColumns);
   
-  // Extract key trends with more detail
-  const keyTrends = extractDetailedTrends(numericColumns, charts, data);
+  // Generate key observations with meaning
+  const keyTrends = generateKeyObservations(numericColumns, charts, data);
   
-  // Identify anomalies with context
-  const anomalies = extractDetailedAnomalies(charts, numericColumns);
+  // Generate patterns and variability insights
+  const anomalies = generatePatternsAndVariability(numericColumns, categoricalColumns);
   
-  // Generate actionable insights
-  const insights = generateDetailedInsights(data, charts, numericColumns, categoricalColumns);
+  // Generate relationships and actionable insights
+  const insights = generateRelationshipsAndActions(data, charts, numericColumns, categoricalColumns);
   
-  // Create comprehensive conclusion
-  const conclusion = generateDetailedConclusion(data, keyTrends, anomalies, insights, numericColumns);
+  // Generate decision-oriented conclusion
+  const conclusion = generateFinalInterpretation(data, keyTrends, anomalies, insights, numericColumns);
   
   return {
-    title: generateDynamicTitle(data, numericColumns),
+    title: generateNarrativeTitle(data, numericColumns),
     overview,
     keyTrends,
     anomalies,
@@ -30,170 +30,233 @@ export function generateDataStory(data: CleanedData, charts: ChartConfig[]): Dat
   };
 }
 
-function generateDynamicTitle(data: CleanedData, numericColumns: CleanedData['columns']): string {
+function generateNarrativeTitle(data: CleanedData, numericColumns: CleanedData['columns']): string {
   const hasTimeSeries = data.columns.some(c => c.type === 'datetime');
-  const primaryMetric = numericColumns[0]?.name?.replace(/_/g, ' ') || 'Data';
+  const primaryMetric = numericColumns[0]?.name || 'Performance';
   
   if (hasTimeSeries) {
-    return `Comprehensive Time-Series Analysis: ${data.rowCount.toLocaleString()} Data Points Across ${numericColumns.length} Key Metrics`;
+    return `Understanding Your ${formatColumnName(primaryMetric)} Performance: A Complete Analysis`;
   }
-  return `In-Depth Statistical Analysis: ${formatColumnName(primaryMetric)} and ${numericColumns.length - 1} Related Variables`;
+  return `What Your Data Reveals: Insights Across ${data.rowCount.toLocaleString()} Records`;
 }
 
-function generateDetailedOverview(
+function generateExecutiveSummary(
   data: CleanedData, 
   numericColumns: CleanedData['columns'],
   categoricalColumns: CleanedData['columns'],
   dateColumns: CleanedData['columns']
 ): string {
-  let overview = `This comprehensive analysis examines a dataset containing ${data.rowCount.toLocaleString()} records across ${data.columnCount} distinct variables. `;
+  let summary = '';
   
+  // Opening hook - what's the story?
+  if (numericColumns.length > 0) {
+    const primaryCol = numericColumns[0];
+    const trend = primaryCol.stats?.trend;
+    const change = primaryCol.stats?.percentChange;
+    
+    if (trend === 'increasing' && change && change > 10) {
+      summary = `Good news: Your ${formatColumnName(primaryCol.name)} is showing strong growth, up ${change.toFixed(0)}% over the period analyzed. `;
+    } else if (trend === 'decreasing' && change && change < -10) {
+      summary = `Attention needed: ${formatColumnName(primaryCol.name)} has declined by ${Math.abs(change).toFixed(0)}%, which may require investigation. `;
+    } else {
+      summary = `Your data tells an interesting story across ${data.rowCount.toLocaleString()} records. `;
+    }
+  }
+  
+  // Time context if available
   if (dateColumns.length > 0) {
     const dateCol = dateColumns[0];
     const dateValues = dateCol.values.filter(v => v !== null) as string[];
-    if (dateValues.length > 0) {
+    if (dateValues.length > 1) {
       const dates = dateValues.map(d => new Date(d)).filter(d => !isNaN(d.getTime()));
       if (dates.length > 1) {
         const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
         const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
-        overview += `The data spans from ${minDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} to ${maxDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}, providing a temporal perspective for trend analysis. `;
+        const monthsDiff = Math.round((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
+        summary += `This analysis covers ${monthsDiff > 0 ? `${monthsDiff} months` : 'the available period'} of activity, giving us a solid foundation to understand what is working and what needs attention. `;
       }
     }
   }
   
-  if (numericColumns.length > 0) {
-    const metricsDesc = numericColumns.slice(0, 3).map(c => formatColumnName(c.name)).join(', ');
-    overview += `Key quantitative measures include ${metricsDesc}${numericColumns.length > 3 ? ` and ${numericColumns.length - 3} additional metrics` : ''}. `;
-    
-    // Add statistical summary
-    const primaryCol = numericColumns[0];
-    if (primaryCol.stats) {
-      const range = (primaryCol.stats.max || 0) - (primaryCol.stats.min || 0);
-      const cv = primaryCol.stats.stdDev && primaryCol.stats.mean 
-        ? ((primaryCol.stats.stdDev / primaryCol.stats.mean) * 100).toFixed(1)
-        : null;
-      
-      overview += `The primary metric, ${formatColumnName(primaryCol.name)}, ranges from ${primaryCol.stats.min?.toLocaleString()} to ${primaryCol.stats.max?.toLocaleString()} with a mean of ${primaryCol.stats.mean?.toFixed(2)}${cv ? ` and a coefficient of variation of ${cv}%` : ''}. `;
-    }
-  }
-  
-  if (categoricalColumns.length > 0) {
-    const catDesc = categoricalColumns.slice(0, 2).map(c => {
-      const uniqueCount = c.stats?.unique || 0;
-      return `${formatColumnName(c.name)} (${uniqueCount} categories)`;
-    }).join(' and ');
-    overview += `Categorical dimensions include ${catDesc}, enabling segmented analysis. `;
-  }
-  
-  // Data quality assessment
+  // Data quality and confidence
   const totalMissing = data.columns.reduce((sum, col) => sum + (col.stats?.missing || 0), 0);
   const totalCells = data.rowCount * data.columnCount;
-  const completenessRate = ((1 - totalMissing / totalCells) * 100).toFixed(1);
+  const completeness = ((1 - totalMissing / totalCells) * 100);
   
-  overview += `Data completeness stands at ${completenessRate}%, indicating ${parseFloat(completenessRate) > 95 ? 'excellent' : parseFloat(completenessRate) > 80 ? 'good' : 'moderate'} data quality for reliable analysis.`;
+  if (completeness > 95) {
+    summary += `The data quality is excellent, meaning we can trust these findings with high confidence.`;
+  } else if (completeness > 80) {
+    summary += `While some data points are missing, the overall quality is sufficient for reliable conclusions.`;
+  } else {
+    summary += `Note that some gaps in the data may affect the precision of these insights.`;
+  }
   
-  return overview;
+  return summary;
 }
 
-function extractDetailedTrends(
+function generateKeyObservations(
   numericColumns: CleanedData['columns'], 
   charts: ChartConfig[],
   data: CleanedData
 ): string[] {
-  const trends: string[] = [];
+  const observations: string[] = [];
   
-  numericColumns.forEach(col => {
-    if (col.stats?.trend && col.stats?.percentChange !== undefined) {
-      const change = col.stats.percentChange;
+  numericColumns.slice(0, 4).forEach(col => {
+    const stats = col.stats;
+    if (!stats) return;
+    
+    const name = formatColumnName(col.name);
+    
+    // Trend interpretation with business meaning
+    if (stats.trend && stats.percentChange !== undefined) {
+      const change = stats.percentChange;
       const absChange = Math.abs(change);
-      const direction = change > 0 ? 'increased' : 'decreased';
-      const intensity = absChange > 50 ? 'dramatically' : absChange > 20 ? 'significantly' : 'moderately';
       
-      let trendDesc = `${formatColumnName(col.name)} has ${intensity} ${direction} by ${absChange.toFixed(1)}% over the observation period`;
-      
-      // Add context about the values
-      if (col.stats.mean && col.stats.median) {
-        const skewIndicator = col.stats.mean > col.stats.median ? 'right-skewed (potential high outliers)' : 
-                              col.stats.mean < col.stats.median ? 'left-skewed (potential low outliers)' : 'symmetrically distributed';
-        trendDesc += `. The distribution is ${skewIndicator}`;
+      if (stats.trend === 'increasing') {
+        if (absChange > 30) {
+          observations.push(
+            `${name} has seen remarkable growth of ${absChange.toFixed(0)}%. This kind of momentum suggests something is working well—whether it is a new strategy, seasonal demand, or market conditions. Consider investigating what is driving this success so it can be replicated.`
+          );
+        } else if (absChange > 10) {
+          observations.push(
+            `${name} is trending upward with a healthy ${absChange.toFixed(0)}% increase. This steady growth indicates positive progress, though there may still be room to accelerate if the right factors are identified.`
+          );
+        } else {
+          observations.push(
+            `${name} shows modest improvement of ${absChange.toFixed(0)}%. While growth is always welcome, this pace may not be enough to meet ambitious targets. Worth exploring what barriers might be limiting faster progress.`
+          );
+        }
+      } else if (stats.trend === 'decreasing') {
+        if (absChange > 30) {
+          observations.push(
+            `${name} has dropped significantly by ${absChange.toFixed(0)}%—this is a red flag that needs immediate attention. Something has changed, and understanding why should be a priority before the decline continues.`
+          );
+        } else if (absChange > 10) {
+          observations.push(
+            `${name} is declining at ${absChange.toFixed(0)}%, which warrants concern. This could indicate shifting conditions, competitive pressure, or internal challenges that need to be addressed.`
+          );
+        } else {
+          observations.push(
+            `${name} has slightly decreased by ${absChange.toFixed(0)}%. While not alarming, this minor dip should be monitored to ensure it does not become a larger trend.`
+          );
+        }
+      } else {
+        observations.push(
+          `${name} has remained stable during this period. Stability can be positive (consistent performance) or concerning (lack of growth), depending on your goals. Consider whether this metric should be actively improved.`
+        );
       }
+    }
+    
+    // Value context
+    if (stats.mean && stats.min !== undefined && stats.max !== undefined) {
+      const range = stats.max - stats.min;
+      const typical = stats.mean;
       
-      trends.push(trendDesc);
+      if (range > typical * 2) {
+        observations.push(
+          `The range of ${name} is quite wide—from ${stats.min.toLocaleString()} to ${stats.max.toLocaleString()}. This suggests significant differences within your data, possibly reflecting different segments, time periods, or conditions that perform very differently.`
+        );
+      }
     }
   });
   
-  // Add momentum analysis
-  numericColumns.slice(0, 2).forEach(col => {
-    const values = col.values.filter(v => v !== null) as number[];
-    if (values.length >= 4) {
-      const recentQuarter = values.slice(-Math.floor(values.length / 4));
-      const previousQuarter = values.slice(-Math.floor(values.length / 2), -Math.floor(values.length / 4));
+  // Add momentum analysis in plain language
+  if (numericColumns.length > 0) {
+    const primaryCol = numericColumns[0];
+    const values = primaryCol.values.filter(v => v !== null) as number[];
+    
+    if (values.length >= 6) {
+      const recentThird = values.slice(-Math.floor(values.length / 3));
+      const middleThird = values.slice(Math.floor(values.length / 3), Math.floor(values.length * 2 / 3));
       
-      if (recentQuarter.length > 0 && previousQuarter.length > 0) {
-        const recentAvg = recentQuarter.reduce((a, b) => a + b, 0) / recentQuarter.length;
-        const previousAvg = previousQuarter.reduce((a, b) => a + b, 0) / previousQuarter.length;
-        const momentum = ((recentAvg - previousAvg) / previousAvg) * 100;
+      if (recentThird.length > 0 && middleThird.length > 0) {
+        const recentAvg = recentThird.reduce((a, b) => a + b, 0) / recentThird.length;
+        const middleAvg = middleThird.reduce((a, b) => a + b, 0) / middleThird.length;
+        const momentum = ((recentAvg - middleAvg) / middleAvg) * 100;
         
-        if (Math.abs(momentum) > 5) {
-          const momentumDir = momentum > 0 ? 'accelerating' : 'decelerating';
-          trends.push(`Recent momentum in ${formatColumnName(col.name)} shows ${momentumDir} trend with ${Math.abs(momentum).toFixed(1)}% change in recent quarter vs. previous`);
+        if (Math.abs(momentum) > 10) {
+          const direction = momentum > 0 ? 'accelerating' : 'slowing down';
+          observations.push(
+            `Recent performance is ${direction} compared to earlier in the period. This recent momentum (${momentum > 0 ? '+' : ''}${momentum.toFixed(0)}%) is worth watching—it may signal a turning point or confirm an emerging trend.`
+          );
         }
       }
     }
-  });
+  }
   
-  // Chart-derived trends with more context
-  charts.forEach(chart => {
-    const trendInsights = chart.insights.filter(i => i.type === 'trend');
-    trendInsights.forEach(insight => {
-      if (!trends.some(t => t.includes(insight.description))) {
-        trends.push(insight.description);
-      }
-    });
-  });
-  
-  return [...new Set(trends)].slice(0, 6);
+  return observations.slice(0, 5);
 }
 
-function extractDetailedAnomalies(charts: ChartConfig[], numericColumns: CleanedData['columns']): string[] {
-  const anomalies: string[] = [];
+function generatePatternsAndVariability(
+  numericColumns: CleanedData['columns'],
+  categoricalColumns: CleanedData['columns']
+): string[] {
+  const patterns: string[] = [];
   
-  // Statistical outlier analysis
+  // Variability analysis with meaning
+  numericColumns.slice(0, 3).forEach(col => {
+    const stats = col.stats;
+    if (!stats?.stdDev || !stats?.mean) return;
+    
+    const cv = (stats.stdDev / Math.abs(stats.mean)) * 100;
+    const name = formatColumnName(col.name);
+    
+    if (cv > 50) {
+      patterns.push(
+        `${name} shows high variability—values swing widely from the average. This unpredictability could make planning difficult. It might reflect natural volatility (like sales seasonality) or underlying inconsistencies that could be smoothed out.`
+      );
+    } else if (cv > 25) {
+      patterns.push(
+        `${name} has moderate variability, which is fairly typical for most business metrics. Some fluctuation is normal, but understanding the causes of larger swings could help improve predictability.`
+      );
+    } else if (cv < 10) {
+      patterns.push(
+        `${name} is remarkably consistent—values cluster tightly around the average. This predictability makes forecasting easier, though it may also suggest limited opportunity for significant improvement without changing something fundamental.`
+      );
+    }
+  });
+  
+  // Outlier interpretation
   numericColumns.forEach(col => {
     if (col.stats?.outliers && col.stats.outliers.length > 0) {
       const outlierCount = col.stats.outliers.length;
-      const outlierPercentage = ((outlierCount / (col.stats.count || 1)) * 100).toFixed(1);
-      const maxOutlier = Math.max(...col.stats.outliers);
-      const minOutlier = Math.min(...col.stats.outliers);
+      const name = formatColumnName(col.name);
       
-      let anomalyDesc = `${formatColumnName(col.name)} contains ${outlierCount} statistical outliers (${outlierPercentage}% of data)`;
-      
-      if (col.stats.mean) {
-        const maxDeviation = ((maxOutlier - col.stats.mean) / col.stats.mean * 100).toFixed(1);
-        anomalyDesc += `. Extreme values deviate up to ${Math.abs(parseFloat(maxDeviation))}% from the mean`;
+      if (outlierCount <= 3) {
+        patterns.push(
+          `A few exceptional values exist in ${name}. These outliers could represent special cases worth studying—perhaps your best performers or unusual circumstances that could provide valuable lessons.`
+        );
+      } else if (outlierCount > 5) {
+        patterns.push(
+          `Multiple outliers detected in ${name} (${outlierCount} unusual values). This many exceptions suggest either data quality issues or genuinely different subgroups within your data that may need separate analysis.`
+        );
       }
-      
-      anomalies.push(anomalyDesc);
     }
   });
   
-  // Chart-based anomalies
-  charts.forEach(chart => {
-    chart.insights
-      .filter(i => (i.type === 'anomaly' || i.type === 'spike' || i.type === 'drop') && i.severity === 'high')
-      .forEach(insight => {
-        let enhancedDesc = insight.description;
-        if (insight.dataPoint) {
-          enhancedDesc += ` at ${insight.dataPoint.x} (value: ${typeof insight.dataPoint.y === 'number' ? insight.dataPoint.y.toFixed(2) : insight.dataPoint.y})`;
-        }
-        anomalies.push(enhancedDesc);
-      });
+  // Categorical distribution insights
+  categoricalColumns.slice(0, 2).forEach(col => {
+    if (col.stats?.mode && col.stats?.unique && col.stats?.count) {
+      const modeCount = col.values.filter(v => v === col.stats?.mode).length;
+      const modePercentage = (modeCount / col.stats.count) * 100;
+      const name = formatColumnName(col.name);
+      
+      if (modePercentage > 50) {
+        patterns.push(
+          `Over half of your data falls into "${col.stats.mode}" for ${name}. This concentration means insights from this dominant group will heavily influence overall conclusions. Consider whether the smaller segments behave differently.`
+        );
+      } else if (col.stats.unique <= 3) {
+        patterns.push(
+          `${name} has just ${col.stats.unique} categories. This simplicity makes segmented analysis straightforward and comparisons between groups meaningful.`
+        );
+      }
+    }
   });
   
-  return [...new Set(anomalies)].slice(0, 5);
+  return patterns.slice(0, 4);
 }
 
-function generateDetailedInsights(
+function generateRelationshipsAndActions(
   data: CleanedData, 
   charts: ChartConfig[], 
   numericColumns: CleanedData['columns'],
@@ -201,121 +264,124 @@ function generateDetailedInsights(
 ): string[] {
   const insights: string[] = [];
   
-  // Cross-variable relationships
+  // Comparative insights with context
   if (numericColumns.length >= 2) {
     const col1 = numericColumns[0];
     const col2 = numericColumns[1];
     
-    if (col1.stats?.mean && col2.stats?.mean) {
-      const ratio = col1.stats.mean / col2.stats.mean;
-      insights.push(
-        `${formatColumnName(col1.name)} averages ${ratio.toFixed(2)}x the value of ${formatColumnName(col2.name)}, suggesting a ${ratio > 1 ? 'dominant' : 'secondary'} relationship between these metrics`
-      );
-    }
-    
-    // Volatility comparison
-    if (col1.stats?.stdDev && col2.stats?.stdDev && col1.stats?.mean && col2.stats?.mean) {
-      const cv1 = (col1.stats.stdDev / col1.stats.mean) * 100;
-      const cv2 = (col2.stats.stdDev / col2.stats.mean) * 100;
-      const moreVolatile = cv1 > cv2 ? col1.name : col2.name;
-      const lessVolatile = cv1 > cv2 ? col2.name : col1.name;
-      insights.push(
-        `${formatColumnName(moreVolatile)} shows ${(Math.abs(cv1 - cv2)).toFixed(1)}% higher volatility than ${formatColumnName(lessVolatile)}, indicating greater variability in this metric`
-      );
+    // Check for meaningful relationship
+    if (col1.stats?.mean && col2.stats?.mean && col1.stats?.stdDev && col2.stats?.stdDev) {
+      const cv1 = col1.stats.stdDev / Math.abs(col1.stats.mean);
+      const cv2 = col2.stats.stdDev / Math.abs(col2.stats.mean);
+      
+      if (Math.abs(cv1 - cv2) > 0.2) {
+        const moreVariable = cv1 > cv2 ? col1.name : col2.name;
+        const moreStable = cv1 > cv2 ? col2.name : col1.name;
+        insights.push(
+          `${formatColumnName(moreVariable)} fluctuates more than ${formatColumnName(moreStable)}. If you are looking to reduce risk or improve predictability, focusing on stabilizing ${formatColumnName(moreVariable)} might yield better results.`
+        );
+      }
     }
   }
   
-  // Distribution insights
-  numericColumns.slice(0, 3).forEach(col => {
-    if (col.stats?.percentiles) {
-      const iqr = col.stats.percentiles.p75 - col.stats.percentiles.p25;
-      const medianToMean = col.stats.median && col.stats.mean 
-        ? ((col.stats.median - col.stats.mean) / col.stats.mean * 100).toFixed(1)
-        : null;
+  // Distribution-based actionable insights
+  numericColumns.slice(0, 2).forEach(col => {
+    if (col.stats?.percentiles && col.stats?.mean && col.stats?.median) {
+      const name = formatColumnName(col.name);
+      const skew = col.stats.mean - col.stats.median;
+      const relativeSkew = skew / Math.abs(col.stats.mean);
       
-      if (medianToMean && Math.abs(parseFloat(medianToMean)) > 10) {
-        const skewDir = parseFloat(medianToMean) < 0 ? 'right' : 'left';
+      if (relativeSkew > 0.1) {
         insights.push(
-          `${formatColumnName(col.name)} distribution is ${skewDir}-skewed (median ${Math.abs(parseFloat(medianToMean))}% ${parseFloat(medianToMean) < 0 ? 'below' : 'above'} mean), suggesting ${skewDir === 'right' ? 'presence of high-value outliers' : 'concentration of lower values'}`
+          `${name} has a long tail of high values—a few data points are pulling the average up significantly. This means the typical case is actually lower than the average suggests. Consider using the median for more realistic expectations.`
+        );
+      } else if (relativeSkew < -0.1) {
+        insights.push(
+          `${name} is weighted toward lower values, with occasional high performers. Understanding what drives those high performers could help elevate overall results.`
         );
       }
     }
   });
   
-  // Categorical insights
-  categoricalColumns.slice(0, 2).forEach(col => {
-    if (col.stats?.mode && col.stats?.unique) {
-      const modeFreq = col.values.filter(v => v === col.stats?.mode).length;
-      const modePercentage = ((modeFreq / (col.stats.count || 1)) * 100).toFixed(1);
-      
-      if (parseFloat(modePercentage) > 30) {
-        insights.push(
-          `"${col.stats.mode}" is the dominant category in ${formatColumnName(col.name)}, representing ${modePercentage}% of all records`
-        );
-      }
-    }
-  });
-  
-  // Performance quartile analysis
+  // Performance thresholds as recommendations
   if (numericColumns.length > 0) {
     const primaryCol = numericColumns[0];
     if (primaryCol.stats?.percentiles) {
       const p75 = primaryCol.stats.percentiles.p75;
-      const p25 = primaryCol.stats.percentiles.p25;
-      const topQuartileThreshold = p75;
-      
+      const name = formatColumnName(primaryCol.name);
       insights.push(
-        `Top quartile performance threshold for ${formatColumnName(primaryCol.name)} is ${topQuartileThreshold.toFixed(2)}, with an interquartile range of ${(p75 - p25).toFixed(2)}`
+        `To be in the top 25% for ${name}, you need to exceed ${p75.toLocaleString()}. This benchmark can help set realistic targets and identify what separates top performers from the rest.`
       );
     }
   }
   
-  return [...new Set(insights)].slice(0, 6);
+  // Monitoring recommendations
+  const volatileColumns = numericColumns.filter(col => {
+    if (!col.stats?.stdDev || !col.stats?.mean) return false;
+    return (col.stats.stdDev / Math.abs(col.stats.mean)) > 0.3;
+  });
+  
+  if (volatileColumns.length > 0) {
+    const names = volatileColumns.slice(0, 2).map(c => formatColumnName(c.name)).join(' and ');
+    insights.push(
+      `${names} should be monitored regularly due to their variability. Setting up alerts for unusual values could help catch issues early before they become bigger problems.`
+    );
+  }
+  
+  // Investigation suggestions based on anomalies
+  const hasAnomalies = charts.some(c => c.insights.some(i => i.type === 'anomaly' || i.type === 'spike' || i.type === 'drop'));
+  if (hasAnomalies) {
+    insights.push(
+      `Several unusual patterns have been detected. Clicking on specific data points in the charts will reveal what happened at those moments—this investigation could uncover root causes or opportunities.`
+    );
+  }
+  
+  return insights.slice(0, 5);
 }
 
-function generateDetailedConclusion(
+function generateFinalInterpretation(
   data: CleanedData,
   trends: string[], 
-  anomalies: string[], 
+  patterns: string[], 
   insights: string[],
   numericColumns: CleanedData['columns']
 ): string {
-  let conclusion = 'This comprehensive analysis reveals several key findings. ';
+  let conclusion = '';
   
-  // Trend summary
-  if (trends.length > 0) {
-    const trendCount = trends.length;
-    const hasPositive = trends.some(t => t.includes('increased') || t.includes('accelerating'));
-    const hasNegative = trends.some(t => t.includes('decreased') || t.includes('decelerating'));
-    
-    if (hasPositive && hasNegative) {
-      conclusion += `The data exhibits ${trendCount} significant trends with mixed directionality, suggesting a complex and dynamic pattern that warrants segment-specific analysis. `;
-    } else if (hasPositive) {
-      conclusion += `Overall, the data shows positive momentum with ${trendCount} identified growth trend${trendCount > 1 ? 's' : ''}, indicating favorable conditions. `;
-    } else if (hasNegative) {
-      conclusion += `The analysis identifies ${trendCount} declining trend${trendCount > 1 ? 's' : ''}, which may require strategic intervention. `;
-    } else {
-      conclusion += `${trendCount} significant pattern${trendCount > 1 ? 's have' : ' has'} been identified in the data. `;
-    }
+  // Overall health assessment
+  const positiveTrends = trends.filter(t => 
+    t.includes('growth') || t.includes('improvement') || t.includes('success') || t.includes('positive')
+  ).length;
+  const concerningPatterns = patterns.filter(p => 
+    p.includes('attention') || p.includes('concern') || p.includes('red flag')
+  ).length;
+  
+  if (positiveTrends > concerningPatterns) {
+    conclusion = 'Overall, the data paints a positive picture. ';
+  } else if (concerningPatterns > positiveTrends) {
+    conclusion = 'The data suggests some challenges that deserve attention. ';
+  } else {
+    conclusion = 'The data reveals a mixed picture with both strengths and areas for improvement. ';
   }
   
-  // Anomaly summary
-  if (anomalies.length > 0) {
-    conclusion += `${anomalies.length} notable anomal${anomalies.length > 1 ? 'ies require' : 'y requires'} attention, representing potential outliers or exceptional events that should be investigated further. `;
-  }
-  
-  // Data quality and reliability note
+  // Confidence statement
   const totalOutliers = numericColumns.reduce((sum, col) => sum + (col.stats?.outliers?.length || 0), 0);
-  if (totalOutliers < data.rowCount * 0.05) {
-    conclusion += 'The low outlier ratio indicates high data reliability for decision-making. ';
+  const outlierRatio = totalOutliers / data.rowCount;
+  
+  if (outlierRatio < 0.02) {
+    conclusion += 'The low number of outliers indicates this is clean, reliable data that can confidently support decision-making. ';
+  } else if (outlierRatio < 0.1) {
+    conclusion += 'While a few unusual values exist, the overall patterns are clear enough to guide strategic thinking. ';
+  } else {
+    conclusion += 'The presence of many unusual values suggests taking conclusions with some caution and perhaps investigating data quality. ';
   }
   
-  // Actionable recommendation
+  // Actionable next step
   if (insights.length > 0) {
-    conclusion += `Based on ${insights.length} actionable insight${insights.length > 1 ? 's' : ''}, we recommend focusing on the primary metrics identified while monitoring the highlighted anomalies. `;
+    conclusion += 'The insights identified point to concrete opportunities—prioritize the most impactful recommendations based on your current goals. ';
   }
   
-  conclusion += 'For deeper analysis, click on any chart element to explore specific data points and their contextual explanations.';
+  conclusion += 'For a deeper understanding of specific moments or anomalies, use the interactive dashboard to explore individual data points and their explanations.';
   
   return conclusion;
 }
