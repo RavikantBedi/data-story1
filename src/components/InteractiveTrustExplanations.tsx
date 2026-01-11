@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Info, 
@@ -17,7 +17,8 @@ interface InteractiveTrustExplanationsProps {
   evidence: InsightEvidence[];
 }
 
-export function InteractiveTrustExplanations({ evidence }: InteractiveTrustExplanationsProps) {
+export const InteractiveTrustExplanations = forwardRef<HTMLDivElement, InteractiveTrustExplanationsProps>(
+  function InteractiveTrustExplanations({ evidence }, ref) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   const getConfidenceColor = (confidence: number) => {
@@ -85,7 +86,7 @@ export function InteractiveTrustExplanations({ evidence }: InteractiveTrustExpla
   };
 
   return (
-    <div className="space-y-4">
+    <div ref={ref} className="space-y-4">
       {evidence.map((item, index) => {
         const isExpanded = expandedIndex === index;
         const breakdown = getConfidenceBreakdown(item);
@@ -241,4 +242,7 @@ export function InteractiveTrustExplanations({ evidence }: InteractiveTrustExpla
       })}
     </div>
   );
-}
+});
+
+// Default export for compatibility
+export default InteractiveTrustExplanations;

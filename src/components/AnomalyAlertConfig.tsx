@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Bell, BellRing, Mail, Plus, X, AlertTriangle, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -41,69 +41,70 @@ export function AnomalyAlertConfig({ data }: AnomalyAlertConfigProps) {
   });
   const [newEmail, setNewEmail] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [anomalies, setAnomalies] = useState<DetectedAnomaly[]>([]);
 
   useEffect(() => {
     localStorage.setItem('anomalyAlertConfig', JSON.stringify(config));
   }, [config]);
 
-  useEffect(() => {
-    // Detect anomalies when data changes
-    const detected = detectAnomalies(data, config.thresholds);
-    setAnomalies(detected);
-  }, [data, config.thresholds]);
+  // Memoized anomaly detection
+  const anomalies = useMemo(() => {
+    try {
+      const detected: DetectedAnomaly[] = [];
+      const numericCols = data.columns.filter(c => c.type === 'numeric');
 
-  const detectAnomalies = (data: CleanedData, thresholds: AlertConfig['thresholds']): DetectedAnomaly[] => {
-    const anomalies: DetectedAnomaly[] = [];
-    const numericCols = data.columns.filter(c => c.type === 'numeric');
+      numericCols.forEach(col => {
+        if (!col.stats || !col.stats.mean || !col.stats.stdDev) return;
 
-    numericCols.forEach(col => {
-      if (!col.stats || !col.stats.mean || !col.stats.stdDev) return;
-
-      const mean = col.stats.mean;
-      const stdDev = col.stats.stdDev;
-      const min = mean - thresholds.mediumSeverity * stdDev;
-      const max = mean + thresholds.mediumSeverity * stdDev;
-
-      col.values.forEach((val) => {
-        if (typeof val !== 'number') return;
+        const mean = col.stats.mean;
+        const stdDev = col.stats.stdDev;
+        if (stdDev === 0) return;
         
-        const deviation = Math.abs(val - mean) / stdDev;
-        
-        if (deviation >= thresholds.highSeverity) {
-          anomalies.push({
-            metric: col.name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-            value: val,
-            expectedRange: { min: mean - thresholds.highSeverity * stdDev, max: mean + thresholds.highSeverity * stdDev },
-            severity: 'high',
-            description: `Value is ${deviation.toFixed(1)} standard deviations from mean`
-          });
-        } else if (deviation >= thresholds.mediumSeverity) {
-          anomalies.push({
-            metric: col.name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-            value: val,
-            expectedRange: { min, max },
-            severity: 'medium',
-            description: `Value is ${deviation.toFixed(1)} standard deviations from mean`
-          });
-        }
+        const min = mean - config.thresholds.mediumSeverity * stdDev;
+        const max = mean + config.thresholds.mediumSeverity * stdDev;
+
+        col.values.forEach((val) => {
+          if (typeof val !== 'number' || !isFinite(val)) return;
+          
+          const deviation = Math.abs(val - mean) / stdDev;
+          
+          if (deviation >= config.thresholds.highSeverity) {
+            detected.push({
+              metric: col.name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+              value: val,
+              expectedRange: { min: mean - config.thresholds.highSeverity * stdDev, max: mean + config.thresholds.highSeverity * stdDev },
+              severity: 'high',
+              description: `Value is ${deviation.toFixed(1)} standard deviations from mean`
+            });
+          } else if (deviation >= config.thresholds.mediumSeverity) {
+            detected.push({
+              metric: col.name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+              value: val,
+              expectedRange: { min, max },
+              severity: 'medium',
+              description: `Value is ${deviation.toFixed(1)} standard deviations from mean`
+            });
+          }
+        });
       });
-    });
 
-    // Deduplicate and limit to top anomalies
-    const uniqueAnomalies = anomalies.reduce((acc, curr) => {
-      const existing = acc.find(a => a.metric === curr.metric && a.severity === curr.severity);
-      if (!existing || Math.abs(curr.value) > Math.abs(existing.value)) {
-        return [...acc.filter(a => !(a.metric === curr.metric && a.severity === curr.severity)), curr];
-      }
-      return acc;
-    }, [] as DetectedAnomaly[]);
+      // Deduplicate and limit to top anomalies
+      const uniqueAnomalies = detected.reduce((acc, curr) => {
+        const existing = acc.find(a => a.metric === curr.metric && a.severity === curr.severity);
+        if (!existing || Math.abs(curr.value) > Math.abs(existing.value)) {
+          return [...acc.filter(a => !(a.metric === curr.metric && a.severity === curr.severity)), curr];
+        }
+        return acc;
+      }, [] as DetectedAnomaly[]);
 
-    return uniqueAnomalies.sort((a, b) => {
-      const severityOrder = { high: 0, medium: 1, low: 2 };
-      return severityOrder[a.severity] - severityOrder[b.severity];
-    }).slice(0, 10);
-  };
+      return uniqueAnomalies.sort((a, b) => {
+        const severityOrder = { high: 0, medium: 1, low: 2 };
+        return severityOrder[a.severity] - severityOrder[b.severity];
+      }).slice(0, 10);
+    } catch (error) {
+      console.error('Error detecting anomalies:', error);
+      return [];
+    }
+  }, [data, config.thresholds]);
 
   const addRecipient = () => {
     if (!newEmail || !newEmail.includes('@')) {

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Lightbulb, FlaskConical, Target, ChevronRight, Sparkles } from 'lucide-react';
 import { CleanedData } from '@/types/analytics';
@@ -8,7 +9,14 @@ interface BusinessHypothesesProps {
 }
 
 export function BusinessHypotheses({ data }: BusinessHypothesesProps) {
-  const hypotheses = generateBusinessHypotheses(data);
+  const hypotheses = useMemo(() => {
+    try {
+      return generateBusinessHypotheses(data);
+    } catch (error) {
+      console.error('Error generating hypotheses:', error);
+      return [];
+    }
+  }, [data]);
   
   if (hypotheses.length === 0) {
     return null;
