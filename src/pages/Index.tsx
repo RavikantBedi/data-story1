@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,6 +22,7 @@ import { RiskOpportunityRadar } from '@/components/RiskOpportunityRadar';
 import { AdvancedAnalyticsPanel } from '@/components/AdvancedAnalyticsPanel';
 import { AnomalyAlertConfig } from '@/components/AnomalyAlertConfig';
 import { ForecastingCharts } from '@/components/ForecastingCharts';
+import { DataProcessingVisualizer } from '@/components/DataProcessingVisualizer';
 import { cleanAndPrepareData } from '@/lib/dataPreprocessing';
 import { generateCharts } from '@/lib/analyticsEngine';
 import { generateDataStory } from '@/lib/storyGenerator';
@@ -257,6 +258,9 @@ export default function Index() {
               
               {/* Sample Datasets */}
               <SampleDatasetSelector onSelect={handleDataLoaded} isProcessing={isProcessing} />
+
+              {/* Data Processing Visualizer */}
+              <DataProcessingVisualizer isProcessing={isProcessing} />
 
               {/* Saved Analyses (if logged in) */}
               {user && (

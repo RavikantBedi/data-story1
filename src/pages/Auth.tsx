@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Brain, Mail, Lock, User, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
+import { Brain, Mail, Lock, User, ArrowRight, AlertCircle, CheckCircle, Sparkles, BarChart3, Database, TrendingUp } from 'lucide-react';
 import { z } from 'zod';
 import { Separator } from '@/components/ui/separator';
 
@@ -17,6 +17,13 @@ const authSchema = z.object({
 });
 
 type AuthMode = 'login' | 'signup' | 'reset';
+
+const floatingIcons = [
+  { Icon: BarChart3, x: 15, y: 20, delay: 0 },
+  { Icon: Database, x: 85, y: 15, delay: 0.5 },
+  { Icon: TrendingUp, x: 10, y: 75, delay: 1 },
+  { Icon: Sparkles, x: 80, y: 80, delay: 1.5 },
+];
 
 export default function Auth() {
   const [mode, setMode] = useState<AuthMode>('login');
@@ -31,7 +38,6 @@ export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Get the intended destination or default to home
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
 
   useEffect(() => {
@@ -48,7 +54,6 @@ export default function Auth() {
 
     try {
       if (mode === 'reset') {
-        // Password reset
         const emailSchema = z.string().email('Please enter a valid email address');
         emailSchema.parse(email);
 
@@ -140,27 +145,151 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+    <div className="min-h-screen bg-background flex items-center justify-center p-6 overflow-hidden relative">
+      {/* Animated background */}
+      <div className="absolute inset-0 overflow-hidden">
+        {/* Gradient orbs */}
+        <motion.div
+          className="absolute w-[600px] h-[600px] rounded-full"
+          style={{
+            background: 'radial-gradient(circle, hsl(173 80% 40% / 0.1) 0%, transparent 70%)',
+            left: '-10%',
+            top: '-10%',
+          }}
+          animate={{
+            scale: [1, 1.2, 1],
+            x: [0, 50, 0],
+            y: [0, 30, 0],
+          }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute w-[500px] h-[500px] rounded-full"
+          style={{
+            background: 'radial-gradient(circle, hsl(262 83% 58% / 0.08) 0%, transparent 70%)',
+            right: '-5%',
+            bottom: '-5%',
+          }}
+          animate={{
+            scale: [1.2, 1, 1.2],
+            x: [0, -30, 0],
+            y: [0, -50, 0],
+          }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+        />
+
+        {/* Grid pattern */}
+        <div 
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `
+              linear-gradient(hsl(173 80% 40%) 1px, transparent 1px),
+              linear-gradient(90deg, hsl(173 80% 40%) 1px, transparent 1px)
+            `,
+            backgroundSize: '60px 60px',
+          }}
+        />
+
+        {/* Floating icons */}
+        {floatingIcons.map(({ Icon, x, y, delay }, index) => (
+          <motion.div
+            key={index}
+            className="absolute text-primary/10"
+            style={{ left: `${x}%`, top: `${y}%` }}
+            animate={{
+              y: [0, -20, 0],
+              rotate: [0, 10, -10, 0],
+              opacity: [0.1, 0.2, 0.1],
+            }}
+            transition={{
+              duration: 6,
+              repeat: Infinity,
+              delay,
+              ease: "easeInOut"
+            }}
+          >
+            <Icon className="w-12 h-12" />
+          </motion.div>
+        ))}
+
+        {/* Animated particles */}
+        {[...Array(15)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-1 h-1 rounded-full bg-primary/20"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+            }}
+            animate={{
+              y: [0, -100],
+              opacity: [0, 1, 0],
+            }}
+            transition={{
+              duration: 4 + Math.random() * 3,
+              repeat: Infinity,
+              delay: Math.random() * 3,
+              ease: "easeOut"
+            }}
+          />
+        ))}
+      </div>
+
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
+        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="w-full max-w-md relative z-10"
       >
-        <div className="glass-panel-elevated p-8 space-y-8">
+        <div className="glass-panel-elevated p-8 space-y-8 relative overflow-hidden">
+          {/* Decorative corner accents */}
+          <div className="absolute top-0 left-0 w-20 h-20 border-t-2 border-l-2 border-primary/20 rounded-tl-xl" />
+          <div className="absolute bottom-0 right-0 w-20 h-20 border-b-2 border-r-2 border-primary/20 rounded-br-xl" />
+
           {/* Header */}
-          <div className="text-center space-y-2">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary to-chart-5 flex items-center justify-center mb-4">
-              <Brain className="w-8 h-8 text-primary-foreground" />
-            </div>
-            <h1 className="text-2xl font-bold">{getTitle()}</h1>
-            <p className="text-sm text-muted-foreground">{getSubtitle()}</p>
+          <div className="text-center space-y-2 relative">
+            <motion.div 
+              className="relative w-20 h-20 mx-auto mb-4"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+            >
+              {/* Pulsing ring */}
+              <motion.div
+                className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary to-chart-5"
+                animate={{
+                  scale: [1, 1.1, 1],
+                  opacity: [0.5, 0.2, 0.5],
+                }}
+                transition={{ duration: 2, repeat: Infinity }}
+              />
+              <div className="relative w-full h-full rounded-2xl bg-gradient-to-br from-primary to-chart-5 flex items-center justify-center shadow-xl">
+                <Brain className="w-10 h-10 text-primary-foreground" />
+              </div>
+            </motion.div>
+            <motion.h1 
+              className="text-2xl font-bold"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              {getTitle()}
+            </motion.h1>
+            <motion.p 
+              className="text-sm text-muted-foreground"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              {getSubtitle()}
+            </motion.p>
           </div>
 
           {/* Error Message */}
           {error && (
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
               className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-start gap-3"
             >
               <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
@@ -171,8 +300,8 @@ export default function Auth() {
           {/* Success Message */}
           {successMessage && (
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
               className="p-4 bg-green-500/10 border border-green-500/20 rounded-xl flex items-start gap-3"
             >
               <CheckCircle className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
@@ -181,35 +310,45 @@ export default function Auth() {
           )}
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <motion.form 
+            onSubmit={handleSubmit} 
+            className="space-y-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+          >
             {mode === 'signup' && (
-              <div className="space-y-2">
+              <motion.div 
+                className="space-y-2"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+              >
                 <Label htmlFor="displayName">Display Name</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <div className="relative group">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
                   <Input
                     id="displayName"
                     type="text"
                     placeholder="Your name"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    className="pl-10 bg-secondary border-border"
+                    className="pl-10 bg-secondary border-border transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
-              </div>
+              </motion.div>
             )}
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <div className="relative group">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
                 <Input
                   id="email"
                   type="email"
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 bg-secondary border-border"
+                  className="pl-10 bg-secondary border-border transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                   required
                 />
               </div>
@@ -218,15 +357,15 @@ export default function Auth() {
             {mode !== 'reset' && (
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <div className="relative group">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
                   <Input
                     id="password"
                     type="password"
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 bg-secondary border-border"
+                    className="pl-10 bg-secondary border-border transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                     required
                   />
                 </div>
@@ -235,7 +374,7 @@ export default function Auth() {
 
             <Button 
               type="submit" 
-              className="w-full bg-primary hover:bg-primary/90"
+              className="w-full bg-gradient-to-r from-primary to-chart-5 hover:opacity-90 transition-all shadow-lg shadow-primary/25"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -253,9 +392,9 @@ export default function Auth() {
                 </>
               )}
             </Button>
-          </form>
+          </motion.form>
 
-          {/* Forgot Password Link (only on login) */}
+          {/* Forgot Password Link */}
           {mode === 'login' && (
             <div className="text-center">
               <button
@@ -272,7 +411,7 @@ export default function Auth() {
             </div>
           )}
 
-          {/* Divider - hide on reset mode */}
+          {/* Divider */}
           {mode !== 'reset' && (
             <>
               <div className="relative">
@@ -290,7 +429,7 @@ export default function Auth() {
                 variant="outline"
                 onClick={handleGoogleSignIn}
                 disabled={isLoading}
-                className="w-full gap-3"
+                className="w-full gap-3 hover:bg-secondary transition-all"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path
@@ -346,6 +485,16 @@ export default function Auth() {
             )}
           </div>
         </div>
+
+        {/* Bottom branding */}
+        <motion.div 
+          className="text-center mt-6 text-xs text-muted-foreground"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+        >
+          <span className="gradient-text font-medium">DataLens AI</span> — Intelligent Analytics Platform
+        </motion.div>
       </motion.div>
     </div>
   );
