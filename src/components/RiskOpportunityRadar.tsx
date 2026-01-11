@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Radar, TrendingUp, TrendingDown, Minus, AlertTriangle, Sparkles, ArrowRight } from 'lucide-react';
 import { CleanedData } from '@/types/analytics';
@@ -8,7 +9,14 @@ interface RiskOpportunityRadarProps {
 }
 
 export function RiskOpportunityRadar({ data }: RiskOpportunityRadarProps) {
-  const items = generateRiskOpportunityRadar(data);
+  const items = useMemo(() => {
+    try {
+      return generateRiskOpportunityRadar(data);
+    } catch (error) {
+      console.error('Error generating risk/opportunity radar:', error);
+      return [];
+    }
+  }, [data]);
   
   const risks = items.filter(i => i.type === 'risk');
   const opportunities = items.filter(i => i.type === 'opportunity');

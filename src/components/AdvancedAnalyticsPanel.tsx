@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   TrendingUp, 
@@ -103,26 +103,23 @@ export function AdvancedAnalyticsPanel({ data }: AdvancedAnalyticsPanelProps) {
   const [activeMethod, setActiveMethod] = useState<AnalysisMethod>('regression');
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   
-  const regression = performRegression(data);
-  const mutualInfo = calculateMutualInformation(data);
-  const anova = performANOVA(data);
-  const chiSquare = performChiSquare(data);
-  const leadLag = performLeadLagAnalysis(data);
-  const association = findAssociationRules(data);
-  
-  const getResults = () => {
-    switch (activeMethod) {
-      case 'regression': return regression;
-      case 'mutual-info': return mutualInfo;
-      case 'anova': return anova;
-      case 'chi-square': return chiSquare;
-      case 'lead-lag': return leadLag;
-      case 'association': return association;
-      default: return [];
+  // Lazy compute results only for the active method using useMemo
+  const results = useMemo(() => {
+    try {
+      switch (activeMethod) {
+        case 'regression': return performRegression(data);
+        case 'mutual-info': return calculateMutualInformation(data);
+        case 'anova': return performANOVA(data);
+        case 'chi-square': return performChiSquare(data);
+        case 'lead-lag': return performLeadLagAnalysis(data);
+        case 'association': return findAssociationRules(data);
+        default: return [];
+      }
+    } catch (error) {
+      console.error(`Error computing ${activeMethod}:`, error);
+      return [];
     }
-  };
-  
-  const results = getResults();
+  }, [activeMethod, data]);
   
   return (
     <motion.div
@@ -206,22 +203,22 @@ export function AdvancedAnalyticsPanel({ data }: AdvancedAnalyticsPanelProps) {
           ) : (
             <>
               {activeMethod === 'regression' && (
-                <RegressionResults results={regression} />
+                <RegressionResults results={results as RegressionResult[]} />
               )}
               {activeMethod === 'mutual-info' && (
-                <MutualInfoResults results={mutualInfo} />
+                <MutualInfoResults results={results as MutualInformationResult[]} />
               )}
               {activeMethod === 'anova' && (
-                <ANOVAResults results={anova} />
+                <ANOVAResults results={results as ANOVAResult[]} />
               )}
               {activeMethod === 'chi-square' && (
-                <ChiSquareResults results={chiSquare} />
+                <ChiSquareResults results={results as ChiSquareResult[]} />
               )}
               {activeMethod === 'lead-lag' && (
-                <LeadLagResults results={leadLag} />
+                <LeadLagResults results={results as LeadLagResult[]} />
               )}
               {activeMethod === 'association' && (
-                <AssociationResults results={association} />
+                <AssociationResults results={results as AssociationRule[]} />
               )}
             </>
           )}

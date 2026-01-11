@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, Calendar, Target, Info } from 'lucide-react';
 import { CleanedData } from '@/types/analytics';
@@ -39,75 +39,84 @@ interface ForecastData {
 export function ForecastingCharts({ data }: ForecastingChartsProps) {
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
   
-  const numericCols = data.columns.filter(c => c.type === 'numeric');
+  const numericCols = useMemo(() => data.columns.filter(c => c.type === 'numeric'), [data]);
   
-  const generateForecasts = (): ForecastData[] => {
-    const forecasts: ForecastData[] = [];
+  const forecasts = useMemo((): ForecastData[] => {
+    const result: ForecastData[] = [];
     
-    numericCols.slice(0, 4).forEach(col => {
-      const values: number[] = [];
-      col.values.forEach(v => {
-        if (typeof v === 'number' && !isNaN(v)) {
-          values.push(v);
-        }
-      });
-      
-      if (values.length < 5) return;
-      
-      // Create indexed data points
-      const pairs: [number, number][] = values.map((v, i) => [i, v]);
-      
-      // Perform linear regression
-      const regression = ss.linearRegression(pairs);
-      const regressionLine = ss.linearRegressionLine(regression);
-      
-      // Calculate residuals for confidence interval
-      const residuals = pairs.map(([x, y]) => y - regressionLine(x));
-      const residualStd = ss.standardDeviation(residuals);
-      
-      // Historical data
-      const historical = values.map((v, i) => ({ index: i, value: v }));
-      
-      // Forecast next 5 periods
-      const forecastPeriods = 5;
-      const lastIndex = values.length - 1;
-      const forecast = [];
-      
-      for (let i = 1; i <= forecastPeriods; i++) {
-        const x = lastIndex + i;
-        const predicted = regressionLine(x);
-        const marginOfError = 1.96 * residualStd * Math.sqrt(1 + 1/values.length + Math.pow(x - ss.mean(pairs.map(p => p[0])), 2) / ss.sum(pairs.map(p => Math.pow(p[0] - ss.mean(pairs.map(q => q[0])), 2))));
-        
-        forecast.push({
-          index: x,
-          value: predicted,
-          lower: predicted - marginOfError,
-          upper: predicted + marginOfError
+    try {
+      numericCols.slice(0, 4).forEach(col => {
+        const values: number[] = [];
+        col.values.forEach(v => {
+          if (typeof v === 'number' && !isNaN(v) && isFinite(v)) {
+            values.push(v);
+          }
         });
-      }
-      
-      // Determine trend
-      const growthRate = (regression.m / (ss.mean(values) || 1)) * 100;
-      const trend: 'up' | 'down' | 'stable' = 
-        growthRate > 2 ? 'up' : growthRate < -2 ? 'down' : 'stable';
-      
-      // Calculate R-squared for confidence
-      const rSquared = ss.rSquared(pairs, regressionLine);
-      
-      forecasts.push({
-        column: col.name,
-        historical,
-        forecast,
-        trend,
-        growthRate,
-        confidence: Math.round(rSquared * 100)
+        
+        if (values.length < 5) return;
+        
+        // Create indexed data points
+        const pairs: [number, number][] = values.map((v, i) => [i, v]);
+        
+        // Perform linear regression
+        const regression = ss.linearRegression(pairs);
+        const regressionLine = ss.linearRegressionLine(regression);
+        
+        // Calculate residuals for confidence interval
+        const residuals = pairs.map(([x, y]) => y - regressionLine(x));
+        const residualStd = ss.standardDeviation(residuals);
+        
+        // Historical data
+        const historical = values.map((v, i) => ({ index: i, value: v }));
+        
+        // Forecast next 5 periods
+        const forecastPeriods = 5;
+        const lastIndex = values.length - 1;
+        const forecast = [];
+        
+        const meanX = ss.mean(pairs.map(p => p[0]));
+        const sumSquaredDiff = ss.sum(pairs.map(p => Math.pow(p[0] - meanX, 2)));
+        
+        for (let i = 1; i <= forecastPeriods; i++) {
+          const x = lastIndex + i;
+          const predicted = regressionLine(x);
+          const marginOfError = sumSquaredDiff > 0 
+            ? 1.96 * residualStd * Math.sqrt(1 + 1/values.length + Math.pow(x - meanX, 2) / sumSquaredDiff)
+            : 1.96 * residualStd;
+          
+          forecast.push({
+            index: x,
+            value: predicted,
+            lower: predicted - marginOfError,
+            upper: predicted + marginOfError
+          });
+        }
+        
+        // Determine trend
+        const meanValue = ss.mean(values) || 1;
+        const growthRate = (regression.m / meanValue) * 100;
+        const trend: 'up' | 'down' | 'stable' = 
+          growthRate > 2 ? 'up' : growthRate < -2 ? 'down' : 'stable';
+        
+        // Calculate R-squared for confidence
+        const rSquared = ss.rSquared(pairs, regressionLine);
+        
+        result.push({
+          column: col.name,
+          historical,
+          forecast,
+          trend,
+          growthRate,
+          confidence: Math.round(Math.max(0, Math.min(100, rSquared * 100)))
+        });
       });
-    });
+    } catch (error) {
+      console.error('Error generating forecasts:', error);
+    }
     
-    return forecasts;
-  };
+    return result;
+  }, [numericCols]);
   
-  const forecasts = generateForecasts();
   const activeForecast = selectedMetric 
     ? forecasts.find(f => f.column === selectedMetric) 
     : forecasts[0];
